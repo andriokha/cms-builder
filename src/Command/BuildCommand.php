@@ -86,7 +86,7 @@ class BuildCommand extends Command
         $times = 0;
         $stopwatch->start('check');
         $client = new Client();
-        $url = Platform::getUri();
+        $url = $this->getUri();
         while ($check) {
             $res = $client->request('GET', $url);
             if ($res->getStatusCode() == "200") {
@@ -105,6 +105,34 @@ class BuildCommand extends Command
           $output->writeln(sprintf('<info>Site check completed in %s seconds</info>', number_format($event->getDuration()/1000, 2)));
         }
         return 0;
+    }
+
+  /**
+   * Returns the context-aware URI to access the site.
+   *
+   * It will return a different result depending on whether it is run from
+   * inside or outside the container.
+   *
+   * @return string
+   */
+    protected function getUri() {
+      if (getenv('CMS_BUILDER_DOCKER')) {
+        $container = Compose::getContainerName(Platform::projectName(), 'nginx');
+        $format = '{{.NetworkSettings.Networks.bridge.IPAddress}}';
+        $inspect = Docker::inspect(["--format='$format'", $container], true);
+        if (!$inspect->isSuccessful()) {
+          throw new \RuntimeException("Cannot find nginx IP on bridge network");
+        }
+        $matches = [];
+        preg_match('!\d+\.\d+\.\d+\.\d+!', $inspect->getOutput(), $matches);
+        $host = $matches[0];
+
+        return "http://$host";
+
+      }
+      else {
+        return Platform::getUri();
+      }
     }
 
 

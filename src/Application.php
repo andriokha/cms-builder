@@ -149,7 +149,17 @@ class Application extends ParentApplication
     public static function databaseServerAvailable(OutputInterface $output) {
         // Get the docker database port.
         $db_container = Compose::getContainerName(Platform::projectName(), 'mariadb');
-        $inspect = Docker::inspect(['--format=\'{{(index (index .NetworkSettings.Ports "3306/tcp") 0).HostPort}}\'', $db_container], true);
+        // @todo Factor out getting the host and port.
+        if (getenv('CMS_BUILDER_DOCKER')) {
+          $in_docker = TRUE;
+          // Get the DB IP address on the bridge network.
+          $format = '{{.NetworkSettings.Networks.bridge.IPAddress}}';
+        }
+        else {
+          // Get the host port mapped to DB port 3306.
+          $format = '{{(index (index .NetworkSettings.Ports "3306/tcp") 0).HostPort}}';
+        }
+        $inspect = Docker::inspect(["--format='$format'", $db_container], true);
 
         if (!$inspect->isSuccessful()) {
             $output->writeln("<error>Command failed:</error> " . $inspect->getCommandLine());
@@ -160,11 +170,19 @@ class Application extends ParentApplication
             return FALSE;
         }
 
-        preg_match('!\d+!', $inspect->getOutput(), $matches);
-        $port = $matches[0];
+        if (!empty($in_docker)) {
+          preg_match('!\d+\.\d+\.\d+\.\d+!', $inspect->getOutput(), $matches);
+          $host = $matches[0];
+          $port = 3306;
+        }
+        else {
+          preg_match('!\d+!', $inspect->getOutput(), $matches);
+          $host = '127.0.0.1';
+          $port = $matches[0];
+        }
 
         // Ensure that we can connect to the database before loading the data.
-        $dsn = "mysql:dbname=data;host=127.0.0.1;port=$port;";
+        $dsn = "mysql:dbname=data;host=$host;port=$port;";
         $retry = 0;
         while (TRUE) {
             if ($output->getVerbosity() >= $output::VERBOSITY_VERBOSE) {
