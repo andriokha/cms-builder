@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+use tes\CmsBuilder\Application;
 
 /**
  * Builds a Tes site.
@@ -86,7 +87,7 @@ class BuildCommand extends Command
         $times = 0;
         $stopwatch->start('check');
         $client = new Client();
-        $url = $this->getUri();
+        $url = Application::getUri();
         while ($check) {
             $res = $client->request('GET', $url);
             if ($res->getStatusCode() == "200") {
@@ -107,33 +108,6 @@ class BuildCommand extends Command
         return 0;
     }
 
-  /**
-   * Returns the context-aware URI to access the site.
-   *
-   * It will return a different result depending on whether it is run from
-   * inside or outside the container.
-   *
-   * @return string
-   */
-    protected function getUri() {
-      if (getenv('CMS_BUILDER_DOCKER')) {
-        $container = Compose::getContainerName(Platform::projectName(), 'nginx');
-        $format = '{{.NetworkSettings.Networks.bridge.IPAddress}}';
-        $inspect = Docker::inspect(["--format='$format'", $container], true);
-        if (!$inspect->isSuccessful()) {
-          throw new \RuntimeException("Cannot find nginx IP on bridge network");
-        }
-        $matches = [];
-        preg_match('!\d+\.\d+\.\d+\.\d+!', $inspect->getOutput(), $matches);
-        $host = $matches[0];
-
-        return "http://$host";
-
-      }
-      else {
-        return Platform::getUri();
-      }
-    }
 
 
 }

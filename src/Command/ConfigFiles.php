@@ -9,6 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use tes\CmsBuilder\Application;
 use tes\CmsBuilder\Config;
 
 class ConfigFiles extends Command {
@@ -41,7 +42,7 @@ class ConfigFiles extends Command {
               '{{ mariadb_container }}' => Compose::getContainerName(Platform::projectName(), 'mariadb'),
               '{{ redis_container }}' => Compose::getContainerName(Platform::projectName(), 'redis'),
               '{{ solr_container }}' => Compose::getContainerName(Platform::projectName(), 'solr'),
-              '{{ external_project_domain }}' => Platform::getUri(),
+              '{{ external_project_domain }}' => Application::getUri(),
               '{{ mysql_user }}' => Mysql::getMysqlUser(),
               '{{ mysql_password }}' => Mysql::getMysqlPassword(),
               '{{ project_root }}' => Platform::rootDir(),

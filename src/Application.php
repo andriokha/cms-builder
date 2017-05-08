@@ -234,4 +234,49 @@ class Application extends ParentApplication
         }
     }
 
+    /**
+     * Return the context-aware URI to access the site via HTTP.
+     *
+     * It will return a different result depending on whether it is run from
+     * inside or outside a container.
+     *
+     * @return string
+     */
+    static public function getUri() {
+        if (getenv('CMS_BUILDER_DOCKER')) {
+            $host = static::getServiceIpAddress('nginx', 'bridge');
+            return "http://$host";
+        }
+        else {
+            return Platform::getUri();
+        }
+    }
+
+    /**
+     * Return a container's IP address by service name on a particular network.
+     *
+     * It only supports IPv4.
+     *
+     * @param string $service
+     *   The service name.
+     * @param string $network
+     *   The network name.
+     * @return string
+     *   The IP address
+     *
+     * @throws \RuntimeException
+     */
+    static public function getServiceIpAddress($service, $network) {
+        $service = Compose::getContainerName(Platform::projectName(), $service);
+        $format = "{{.NetworkSettings.Networks.$network.IPAddress}}";
+        $inspect = Docker::inspect(["--format='$format'", $service], true);
+        if (!$inspect->isSuccessful()) {
+            throw new \RuntimeException("Cannot find $service IP on $network network");
+        }
+        $matches = [];
+        if (!preg_match('!\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}!', $inspect->getOutput(), $matches)) {
+            throw new \RuntimeException("Cannot parse container IP address (IPv6?)");
+        }
+        return $matches[0];
+    }
 }
